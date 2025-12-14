@@ -135,40 +135,25 @@ int tr_scandir_sort(const struct dirent** A, const struct dirent** B) {
 // 选项 R 的实现
 
 void ls_print(char* DF) {
-    if (strcmp(DF, "/proc") && strcmp(DF, "/sys")) {
-        if (access(DF, R_OK) != 0) {
-            printf("ls: 无法打开目录 '%s': 权限不够\n", DF);
+    if (access(DF, R_OK) != 0) {
+        printf("ls: 无法打开目录 '%s': 权限不够\n", DF);
+    } else {
+        printf("\n%s:\n", DF);
+        struct dirent** d_file;  // 目录下文件的结构体指针数组
+        int d_file_num = 0;
+        // 目录下文件排序
+        if (!t && !r) {
+            d_file_num = scandir(DF, &d_file, NULL, scandir_sort);
+        } else if (!t && r) {
+            d_file_num = scandir(DF, &d_file, NULL, r_scandir_sort);
+        } else if (t && !r) {
+            d_file_num = scandir(DF, &d_file, NULL, t_scandir_sort);
         } else {
-            printf("\n%s:\n", DF);
-            struct dirent** d_file;  // 目录下文件的结构体指针数组
-            int d_file_num = 0;
-            // 目录下文件排序
-            if (!t && !r) {
-                d_file_num = scandir(DF, &d_file, NULL, scandir_sort);
-            } else if (!t && r) {
-                d_file_num = scandir(DF, &d_file, NULL, r_scandir_sort);
-            } else if (t && !r) {
-                d_file_num = scandir(DF, &d_file, NULL, t_scandir_sort);
-            } else {
-                d_file_num = scandir(DF, &d_file, NULL, tr_scandir_sort);
-            }
-            if (l || s) {
-                // 计算目录下文件的总块数并打印
-                blkcnt_t st_blocks = 0;
-                for (int j = 0; j < d_file_num; j++) {
-                    if (!a && d_file[j]->d_name[0] == '.') {
-                        continue;
-                    }
-                    struct stat d_statbuf;
-                    char full_path[PATH_MAX];
-                    snprintf(full_path, sizeof(full_path), "%s/%s", DF,
-                             d_file[j]->d_name);
-                    stat(full_path, &d_statbuf);
-                    st_blocks += (d_statbuf.st_blocks / 2);
-                }
-                printf("总计 ");
-                printf("%lu\n", (unsigned long)st_blocks);
-            }
+            d_file_num = scandir(DF, &d_file, NULL, tr_scandir_sort);
+        }
+        if (l || s) {
+            // 计算目录下文件的总块数并打印
+            blkcnt_t st_blocks = 0;
             for (int j = 0; j < d_file_num; j++) {
                 if (!a && d_file[j]->d_name[0] == '.') {
                     continue;
@@ -178,51 +163,64 @@ void ls_print(char* DF) {
                 snprintf(full_path, sizeof(full_path), "%s/%s", DF,
                          d_file[j]->d_name);
                 stat(full_path, &d_statbuf);
-                if (I) {
-                    printf("%7lu ", (unsigned long)d_statbuf.st_ino);
-                }
-                if (s) {
-                    printf("%4lu ", (unsigned long)d_statbuf.st_blocks / 2);
-                }
-                if (l) {
-                    putchar(S_ISREG(d_statbuf.st_mode) ? '-' : 'd');
-                    putchar((d_statbuf.st_mode & S_IRUSR) ? 'r' : '-');
-                    putchar((d_statbuf.st_mode & S_IWUSR) ? 'w' : '-');
-                    putchar((d_statbuf.st_mode & S_IXUSR) ? 'x' : '-');
-                    putchar((d_statbuf.st_mode & S_IRGRP) ? 'r' : '-');
-                    putchar((d_statbuf.st_mode & S_IWGRP) ? 'w' : '-');
-                    putchar((d_statbuf.st_mode & S_IXGRP) ? 'x' : '-');
-                    putchar((d_statbuf.st_mode & S_IROTH) ? 'r' : '-');
-                    putchar((d_statbuf.st_mode & S_IWOTH) ? 'w' : '-');
-                    putchar((d_statbuf.st_mode & S_IXOTH) ? 'x' : '-');
-                    printf(" %2lu ", (unsigned long)d_statbuf.st_nlink);
-                    printf("%s ", getpwuid(d_statbuf.st_uid)->pw_name);
-                    printf("%s ", getgrgid(d_statbuf.st_gid)->gr_name);
-                    printf("%6lu ", (unsigned long)d_statbuf.st_size);
-                    // mtime
-                    struct tm* local_time = localtime(&d_statbuf.st_mtime);
-                    setlocale(LC_TIME, "zh_CN.UTF-8");
-                    char time_str[32];
-                    strftime(time_str, sizeof(time_str), "%m月 %d %H:%M",
-                             local_time);
-                    printf("%s ", time_str);
-                }
-                printf("%s\n", d_file[j]->d_name);  // 颜色
+                st_blocks += (d_statbuf.st_blocks / 2);
             }
-            for (int j = 2; j < d_file_num; j++) {
-                if (!a && d_file[j]->d_name[0] == '.') {
-                    continue;
-                }
-                struct stat d_statbuf;
-                char full_path[PATH_MAX];
-                snprintf(full_path, sizeof(full_path), "%s/%s", DF,
-                         d_file[j]->d_name);
-                stat(full_path, &d_statbuf);
-                if (S_ISDIR(d_statbuf.st_mode)) {
-                    ls_print(full_path);
-                }
-                free(d_file[j]);
+            printf("总计 ");
+            printf("%lu\n", (unsigned long)st_blocks);
+        }
+        for (int j = 0; j < d_file_num; j++) {
+            if (!a && d_file[j]->d_name[0] == '.') {
+                continue;
             }
+            struct stat d_statbuf;
+            char full_path[PATH_MAX];
+            snprintf(full_path, sizeof(full_path), "%s/%s", DF,
+                     d_file[j]->d_name);
+            stat(full_path, &d_statbuf);
+            if (I) {
+                printf("%7lu ", (unsigned long)d_statbuf.st_ino);
+            }
+            if (s) {
+                printf("%4lu ", (unsigned long)d_statbuf.st_blocks / 2);
+            }
+            if (l) {
+                putchar(S_ISREG(d_statbuf.st_mode) ? '-' : 'd');
+                putchar((d_statbuf.st_mode & S_IRUSR) ? 'r' : '-');
+                putchar((d_statbuf.st_mode & S_IWUSR) ? 'w' : '-');
+                putchar((d_statbuf.st_mode & S_IXUSR) ? 'x' : '-');
+                putchar((d_statbuf.st_mode & S_IRGRP) ? 'r' : '-');
+                putchar((d_statbuf.st_mode & S_IWGRP) ? 'w' : '-');
+                putchar((d_statbuf.st_mode & S_IXGRP) ? 'x' : '-');
+                putchar((d_statbuf.st_mode & S_IROTH) ? 'r' : '-');
+                putchar((d_statbuf.st_mode & S_IWOTH) ? 'w' : '-');
+                putchar((d_statbuf.st_mode & S_IXOTH) ? 'x' : '-');
+                printf(" %2lu ", (unsigned long)d_statbuf.st_nlink);
+                printf("%s ", getpwuid(d_statbuf.st_uid)->pw_name);
+                printf("%s ", getgrgid(d_statbuf.st_gid)->gr_name);
+                printf("%6lu ", (unsigned long)d_statbuf.st_size);
+                // mtime
+                struct tm* local_time = localtime(&d_statbuf.st_mtime);
+                setlocale(LC_TIME, "zh_CN.UTF-8");
+                char time_str[32];
+                strftime(time_str, sizeof(time_str), "%m月 %d %H:%M",
+                         local_time);
+                printf("%s ", time_str);
+            }
+            printf("%s\n", d_file[j]->d_name);  // 颜色
+        }
+        for (int j = 2; j < d_file_num; j++) {
+            if (!a && d_file[j]->d_name[0] == '.') {
+                continue;
+            }
+            struct stat d_statbuf;
+            char full_path[PATH_MAX];
+            snprintf(full_path, sizeof(full_path), "%s/%s", DF,
+                     d_file[j]->d_name);
+            stat(full_path, &d_statbuf);
+            if (S_ISDIR(d_statbuf.st_mode) && !S_ISLNK(d_statbuf.st_mode)) {
+                ls_print(full_path);
+            }
+            free(d_file[j]);
         }
     }
 }
@@ -469,7 +467,7 @@ int main(int argc, char* argv[]) {
                              d_file[j]->d_name);
                 }
                 stat(full_path, &d_statbuf);
-                if (S_ISDIR(d_statbuf.st_mode)) {
+                if (S_ISDIR(d_statbuf.st_mode) && !S_ISLNK(d_statbuf.st_mode)) {
                     ls_print(full_path);
                 }
                 free(d_file[j]);
