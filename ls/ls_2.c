@@ -93,8 +93,8 @@ int t_file_qsort(const void* A, const void* B) {
     const char* cmp_a = *(const char**)A;
     const char* cmp_b = *(const char**)B;
     struct stat statbuf_a, statbuf_b;
-    stat(cmp_a, &statbuf_a);
-    stat(cmp_b, &statbuf_b);
+    lstat(cmp_a, &statbuf_a);
+    lstat(cmp_b, &statbuf_b);
     return statbuf_b.st_mtime - statbuf_a.st_mtime;
 }
 
@@ -162,7 +162,7 @@ void ls_print(char* DF) {
                 char full_path[PATH_MAX];
                 snprintf(full_path, sizeof(full_path), "%s/%s", DF,
                          d_file[j]->d_name);
-                stat(full_path, &d_statbuf);
+                lstat(full_path, &d_statbuf);
                 st_blocks += (d_statbuf.st_blocks / 2);
             }
             printf("总计 ");
@@ -176,7 +176,7 @@ void ls_print(char* DF) {
             char full_path[PATH_MAX];
             snprintf(full_path, sizeof(full_path), "%s/%s", DF,
                      d_file[j]->d_name);
-            stat(full_path, &d_statbuf);
+            lstat(full_path, &d_statbuf);
             if (I) {
                 printf("%7lu ", (unsigned long)d_statbuf.st_ino);
             }
@@ -216,8 +216,8 @@ void ls_print(char* DF) {
             char full_path[PATH_MAX];
             snprintf(full_path, sizeof(full_path), "%s/%s", DF,
                      d_file[j]->d_name);
-            stat(full_path, &d_statbuf);
-            if (S_ISDIR(d_statbuf.st_mode) && !S_ISLNK(d_statbuf.st_mode)) {
+            lstat(full_path, &d_statbuf);
+            if (S_ISDIR(d_statbuf.st_mode)) {
                 ls_print(full_path);
             }
             free(d_file[j]);
@@ -275,7 +275,7 @@ int main(int argc, char* argv[]) {
     file[file_num] = NULL;
     for (int i = 0; i < file_num; i++) {
         struct stat statbuf;
-        if (stat(file[i], &statbuf) == -1) {
+        if (lstat(file[i], &statbuf) == -1) {
             // 文件路径错误
             printf("ls: 无法访问 '%s': 没有那个文件或目录\n", file[i]);
         } else if (S_ISREG(statbuf.st_mode)) {
@@ -339,7 +339,7 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < ofile_num; i++) {
         struct stat statbuf;
-        stat(ofile[i], &statbuf);
+        lstat(ofile[i], &statbuf);
         if (I) {
             printf("%7lu ", (unsigned long)statbuf.st_ino);
         }
@@ -406,7 +406,7 @@ int main(int argc, char* argv[]) {
                 char full_path[PATH_MAX];
                 snprintf(full_path, sizeof(full_path), "%s/%s", dfile[i],
                          d_file[j]->d_name);
-                stat(full_path, &d_statbuf);
+                lstat(full_path, &d_statbuf);
                 st_blocks += (d_statbuf.st_blocks / 2);
             }
             printf("总计 ");
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]) {
             char full_path[PATH_MAX];
             snprintf(full_path, sizeof(full_path), "%s/%s", dfile[i],
                      d_file[j]->d_name);
-            stat(full_path, &d_statbuf);
+            lstat(full_path, &d_statbuf);
             if (I) {
                 printf("%7lu ", (unsigned long)d_statbuf.st_ino);
             }
@@ -466,8 +466,8 @@ int main(int argc, char* argv[]) {
                     snprintf(full_path, sizeof(full_path), "%s%s", dfile[i],
                              d_file[j]->d_name);
                 }
-                stat(full_path, &d_statbuf);
-                if (S_ISDIR(d_statbuf.st_mode) && !S_ISLNK(d_statbuf.st_mode)) {
+                lstat(full_path, &d_statbuf);
+                if (S_ISDIR(d_statbuf.st_mode)) {
                     ls_print(full_path);
                 }
                 free(d_file[j]);
